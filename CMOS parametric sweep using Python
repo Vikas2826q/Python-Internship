@@ -1,0 +1,105 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyM6ZUH9IR1psROh9lYJLSrx",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/Vikas2826q/Python-Internship/blob/main/CMOS%20parametric%20sweep%20using%20Python\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "X1uJZkStaWBz",
+        "outputId": "9bd6ce11-117c-4d55-aa43-0b96e702e30a"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "W: Skipping acquire of configured file 'main/source/Sources' as repository 'https://r2u.stat.illinois.edu/ubuntu noble InRelease' does not seem to provide it (sources.list entry misspelt?)\n",
+            "Selecting previously unselected package ngspice.\n",
+            "(Reading database ... 122807 files and directories currently installed.)\n",
+            "Preparing to unpack .../ngspice_42+ds-3build1_amd64.deb ...\n",
+            "Unpacking ngspice (42+ds-3build1) ...\n",
+            "Setting up ngspice (42+ds-3build1) ...\n",
+            "Processing triggers for man-db (2.12.0-4build2) ...\n"
+          ]
+        }
+      ],
+      "source": [
+        "!apt-get -qq update && apt-get -qq install -y ngspice"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import subprocess\n",
+        "\n",
+        "template = \"\"\"* CMOS inverter delay test\n",
+        ".model nm nmos (level=1 vto=0.5 kp=200u)\n",
+        ".model pm pmos (level=1 vto=-0.5 kp=100u)\n",
+        "Vdd vdd 0 1.8\n",
+        "Vin in 0 PULSE(0 1.8 1n 100p 100p 5n 10n)\n",
+        "M1 out in vdd vdd pm w=2u l=0.18u\n",
+        "M2 out in 0 0 nm w=1u l=0.18u\n",
+        "Cl out 0 CLOAD\n",
+        ".tran 10p 20n\n",
+        ".measure tran tpd TRIG v(in) VAL=0.9 RISE=1 TARG v(out) VAL=0.9 FALL=1\n",
+        ".end\n",
+        "\"\"\"\n",
+        "\n",
+        "for c in [\"10f\", \"50f\", \"100f\", \"200f\"]:\n",
+        "    open(\"run.cir\", \"w\").write(template.replace(\"CLOAD\", c))     # fill in the load and save\n",
+        "    result = subprocess.run([\"ngspice\", \"-b\", \"run.cir\"], capture_output=True, text=True)\n",
+        "    for line in result.stdout.splitlines():\n",
+        "        if \"tpd\" in line:\n",
+        "            print(c, \"->\", line)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "KLToyS8eal47",
+        "outputId": "36ea8a44-0491-466b-cf51-1da119b378d2"
+      },
+      "execution_count": 2,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "10f -> tpd                 =  3.153828e-11 targ=  1.081538e-09 trig=  1.050000e-09\n",
+            "50f -> tpd                 =  7.461054e-11 targ=  1.124611e-09 trig=  1.050000e-09\n",
+            "100f -> tpd                 =  1.231669e-10 targ=  1.173167e-09 trig=  1.050000e-09\n",
+            "200f -> tpd                 =  2.203762e-10 targ=  1.270376e-09 trig=  1.050000e-09\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
